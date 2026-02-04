@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+dotenv:
+  - ".env"
+
+vars:
+  GREETING: Hello, world!
+  MIGRATIONS_PATH: "file://db/migrations"
+
+tasks:
+  default:
+    desc: Print a greeting message
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+
+  run:
+    desc: Run API Server
+    cmds:
+      - go run ./cmd/api/main.go
+
+  build:
+    desc: Build Golang
+    cmds:
+      - go build ./cmd/api/main.go
+
+  migrate:up:
+    desc: Run all up migrations_PATH
+    cmds:
+      - migrate -source {{.MIGRATIONS_PATH}} -database "{{.DATABASE_URL}}?sslmode=disable" up
+
+  migrate:down:
+    desc: Roll back 1 migration
+    cmds:
+      - migrate -source {{.MIGRATIONS_PATH}} -database "{{.DATABASE_URL}}?sslmode=disable" down 1
+
+  migrate:version:
+    desc: Show migration version
+    cmds:
+      - migrate -source {{.MIGRATIONS_PATH}} -database "{{.DATABASE_URL}}?sslmode=disable" version
+
+  migrate:create:
+    desc: Create new migrations_PATH file (name=<name-file>)
+    cmds:
+      - migrate create -ext sql -dir db/migrations_PATH -seq {{.name}}
+    requires:
+      vars:
+        - name

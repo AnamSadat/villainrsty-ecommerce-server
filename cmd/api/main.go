@@ -1,21 +1,55 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"villainrsty-ecommerce-server/internal/adapters/http/routes"
+	"villainrsty-ecommerce-server/internal/config"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World!"))
-	})
+	// Load .env
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
 
-	fmt.Println("🚀 Server running on http://localhost:3000")
-	log.Fatal(http.ListenAndServe(":3000", r))
+	cfg := config.MustLoad()
+	db := config.ConnectDB(cfg.DatabaseUrl)
+	defer db.Close()
+
+	r := routes.New()
+
+	srv := &http.Server{
+		Addr:              cfg.Addr,
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		log.Printf("🚀 Server running on http://localhost%s", cfg.Addr)
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("shutdown error: %v", err)
+	}
+
+	log.Println("shutdown compolete")
 }

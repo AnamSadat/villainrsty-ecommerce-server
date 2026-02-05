@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"villainrsty-ecommerce-server/internal/adapters/http/routes"
+	"villainrsty-ecommerce-server/internal/adapters/http/router"
 	"villainrsty-ecommerce-server/internal/config"
 
 	"github.com/joho/godotenv"
@@ -25,7 +25,7 @@ func main() {
 	db := config.ConnectDB(cfg.DatabaseUrl)
 	defer db.Close()
 
-	r := routes.New()
+	r := router.New()
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,

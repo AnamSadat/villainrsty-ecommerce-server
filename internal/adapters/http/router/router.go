@@ -6,16 +6,19 @@ import (
 	"runtime"
 	"time"
 
+	"villainrsty-ecommerce-server/internal/adapters/http/auth/routes"
 	"villainrsty-ecommerce-server/internal/adapters/http/httpx"
+	"villainrsty-ecommerce-server/internal/app"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/swaggest/swgui/v5emb"
 )
 
 var startTime = time.Now()
 
-func New() *chi.Mux {
+func New(container *app.Container) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger, middleware.Recoverer)
@@ -32,6 +35,20 @@ func New() *chi.Mux {
 	})
 
 	r.Get("/health", healtHandler)
+
+	r.Get("/openapi.yml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./openapi.yml")
+	})
+
+	// Pasang Swagger UI v5 (Support v3.0 & v3.1)
+	// New(Judul, Path_ke_YAML, Path_di_Browser)
+	r.Mount("/docs", v5emb.New(
+		"Villainrsty API",
+		"/openapi.yml",
+		"/docs",
+	))
+
+	routes.RegisterRoute(r, container.AuthHandler)
 
 	return r
 }

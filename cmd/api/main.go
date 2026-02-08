@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"villainrsty-ecommerce-server/internal/adapters/http/router"
+	"villainrsty-ecommerce-server/internal/app"
 	"villainrsty-ecommerce-server/internal/config"
 
 	"github.com/joho/godotenv"
@@ -25,7 +26,9 @@ func main() {
 	db := config.ConnectDB(cfg.DatabaseUrl)
 	defer db.Close()
 
-	r := router.New()
+	container := app.New(cfg, db)
+
+	r := router.New(container)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,

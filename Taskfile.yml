@@ -47,3 +47,9 @@ tasks:
     requires:
       vars:
         - name
+
+  docs:
+    desc: Open preview documentations API in website
+    # bun add -g swagger-ui-watcher
+    cmds:
+      - swagger-ui-watcher OpenAPI.yml -p 8000

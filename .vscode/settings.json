@@ -54,5 +54,8 @@
   "git.ignoreRebaseWarning": true,
   "git.replaceTagsWhenPull": true,
   "telemetry.telemetryLevel": "off",
-  "makefile.configureOnOpen": true
+  "makefile.configureOnOpen": true,
+  "yaml.schemas": {
+    "swaggerviewer:openapi": "file:///d%3A/Coding/golang/villainrsty-ecommerce/OpenAPI.yml"
+  }
 }

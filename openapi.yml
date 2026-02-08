@@ -1,0 +1,221 @@
+openapi: "3.0.3"
+info:
+  title: Villainrsty Ecommerce API
+  version: "1.0.0"
+  description: |
+    API Documentation for Villainrsty E-Commerce Platform.
+    Includes Product management and Order processing.
+  contact:
+    name: API Support
+    email: support@villainrsty.com
+
+# URL Server (Bisa diganti-ganti di Swagger UI)
+servers:
+  - url: http://localhost:8080
+    description: Local Development
+  - url: https://api.villainrsty.com/v1
+    description: Production Server
+
+# Konfigurasi Keamanan Global (Opsional, kalau semua endpoint butuh login)
+# security:
+#   - bearerAuth: []
+
+tags:
+  - name: General
+    description: Health check and general info
+  - name: Products
+    description: Operations related to product inventory
+
+paths:
+  # --- ENDPOINT 1: Health Check (Simple Object) ---
+  /:
+    get:
+      tags:
+        - General
+      summary: Health Check
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "System Operational"
+
+  # --- ENDPOINT 2: Get List Products (ARRAY + PAGINATION) ---
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      description: Retrieve a list of products with pagination support.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Items per page
+      responses:
+        "200":
+          description: Success retrieving products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array # <--- INI CARA BIKIN ARRAY
+                    items:
+                      $ref: "#/components/schemas/Product" # Panggil cetakan Product
+                  meta:
+                    $ref: "#/components/schemas/PaginationMeta"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    # --- ENDPOINT 3: Create Product (REQUEST BODY) ---
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      security:
+        - bearerAuth: [] # Endpoint ini butuh Login (Gembok)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+# --- COMPONENTS: GUDANG CETAKAN (BLUEPRINTS) ---
+# Di sini kita mendefinisikan struktur data biar bisa dipakai ulang (Reusability)
+components:
+  # 1. Security Schemes (JWT)
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # 2. Standard Responses (Biar gak ngetik error berulang)
+  responses:
+    BadRequest:
+      description: Invalid Input / Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication failed (Token missing or invalid)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  # 3. Schemas (Model Data)
+  schemas:
+    # Model Product (Output lengkap dengan ID)
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 101
+        name:
+          type: string
+          example: "Gaming Keyboard RGB"
+        price:
+          type: number
+          format: double
+          example: 750000.00
+        category:
+          type: string
+          example: "Electronics"
+        tags:
+          type: array # <--- Array of Strings
+          items:
+            type: string
+          example: ["gaming", "rgb", "keyboard"]
+      required:
+        - id
+        - name
+        - price
+
+    # Model Product Input (Buat POST, tanpa ID)
+    ProductInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          example: "Gaming Mouse Wireless"
+        price:
+          type: number
+          minimum: 0
+          example: 450000
+        category:
+          type: string
+          example: "Electronics"
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - price
+
+    # Model Pagination Meta (Standar industri buat paging)
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        total_pages:
+          type: integer
+          example: 5
+        total_items:
+          type: integer
+          example: 50
+
+    # Model Error Standard
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Validation failed for field 'price'"

@@ -6,7 +6,8 @@ WHERE email = $1;
 -- name: GetUserByID :one
 SELECT id, email, password, name, created_at, updated_at
 FROM users
-WHERE id = $1;
+WHERE id = $1
+LIMIT 1;
 
 -- name: CreateUser :exec
 INSERT INTO users (id, email, password, name, created_at, updated_at)
@@ -23,3 +24,8 @@ WHERE id = $1;
 
 -- name: UserExists :one
 SELECT EXISTS(SELECT 1 FROM users WHERE email = $1);
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password = $2, updated_at = NOW()
+WHERE id = $1;

@@ -43,11 +43,6 @@ func Wrap(kind Kind, msg string, cause error) *AppError {
 	return &AppError{Kind: kind, Message: msg, Cause: cause}
 }
 
-// Validation helper (biar enak bikin error validasi fields)
-func Validation(msg string, field map[string]string) *AppError {
-	return &AppError{Message: msg, Fields: field}
-}
-
 // IsKind buat ngecek kategori error
 func IsKind(err error, kind Kind) bool {
 	var ae *AppError

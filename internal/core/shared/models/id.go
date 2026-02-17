@@ -4,6 +4,7 @@ import (
 	"villainrsty-ecommerce-server/internal/core/shared/errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // ID adalah unique identifier untuk semua entities
@@ -17,6 +18,19 @@ func NewID() ID {
 // String mengkonversi ID ke string
 func (id ID) String() string {
 	return string(id)
+}
+
+func PgUUIDToString(id pgtype.UUID) (string, bool) {
+	if !id.Valid {
+		return "", false
+	}
+
+	u, err := uuid.FromBytes(id.Bytes[:])
+	if err != nil {
+		return "", false
+	}
+
+	return u.String(), true
 }
 
 func (id ID) IsEmpty() bool {

@@ -3,7 +3,7 @@ package models
 import (
 	"time"
 
-	"villainrsty-ecommerce-server/internal/core/shared/errors"
+	"villainrsty-ecommerce-server/pkg/validator"
 )
 
 type User struct {
@@ -28,16 +28,22 @@ func NewUser(email, password, name string) *User {
 }
 
 func (u *User) Validate() error {
-	if u.Email == "" {
-		return errors.New(errors.ErrValidation, "email is required")
+	v := validator.NewValidate()
+
+	if err := v.ValidateEmail(u.Email); err != nil {
+		return err
 	}
 
-	if u.Name == "" {
-		return errors.New(errors.ErrValidation, "name is required")
+	if err := v.ValidatePassword(u.Password); err != nil {
+		return err
 	}
 
-	if u.Password == "" {
-		return errors.New(errors.ErrValidation, "password is required")
+	if err := v.ValidateName(u.Name); err != nil {
+		return err
+	}
+
+	if err := u.ID.Validate(); err != nil {
+		return err
 	}
 
 	return nil

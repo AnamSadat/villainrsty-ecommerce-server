@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,7 +27,23 @@ func main() {
 	db := config.ConnectDB(cfg.DatabaseUrl)
 	defer db.Close()
 
-	container := app.New(cfg, db)
+	// =======================================================
+	//                     using pretty_slog
+	// =======================================================
+	// var logHandler slog.Handler
+
+	// if os.Getenv("APP_ENV") == "production" {
+	// 	logHandler = slog.NewJSONHandler(os.Stdout, nil)
+	// } else {
+	// 	logHandler = logger.NewPrettyHandler(os.Stdout, nil)
+	// }
+
+	// logger := slog.New(logHandler)
+	// =======================================================
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	container := app.New(cfg, db, logger)
 
 	r := router.New(container)
 

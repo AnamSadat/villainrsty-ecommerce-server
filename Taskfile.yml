@@ -7,6 +7,7 @@ dotenv:
 vars:
   GREETING: Hello, world!
   MIGRATIONS_PATH: "file://db/migrations"
+  CREATE_PATH: "db/migrations"
 
 tasks:
   default:
@@ -40,10 +41,23 @@ tasks:
     cmds:
       - migrate -source {{.MIGRATIONS_PATH}} -database "{{.DATABASE_URL}}?sslmode=disable" version
 
+  migrate:clearall:
+    desc: Clear all version
+    cmds:
+      - migrate -source {{.MIGRATIONS_PATH}} -database "{{.DATABASE_URL}}?sslmode=disable" force 0
+
+  migrate:clear:
+    desc: Clear version (number=<number-version>)
+    cmds:
+      - migrate -source {{.MIGRATIONS_PATH}} -database "{{.DATABASE_URL}}?sslmode=disable" force {{.number}}
+    requires:
+      vars:
+        - number
+
   migrate:create:
     desc: Create new migrations_PATH file (name=<name-file>)
     cmds:
-      - migrate create -ext sql -dir db/migrations_PATH -seq {{.name}}
+      - migrate create -ext sql -dir {{.CREATE_PATH}} -seq {{.name}}
     requires:
       vars:
         - name
@@ -52,4 +66,4 @@ tasks:
     desc: Open preview documentations API in website
     # bun add -g swagger-ui-watcher
     cmds:
-      - swagger-ui-watcher OpenAPI.yml -p 8000
+      - swagger-ui-watcher openapi.yml -p 8000

@@ -1,20 +1,30 @@
 package models
 
 import (
-	"regexp"
-
-	"villainrsty-ecommerce-server/internal/core/shared/errors"
+	pkgValidator "villainrsty-ecommerce-server/pkg/validator"
 )
 
 type (
 	LoginRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email      string `json:"email" validate:"required,email"`
+		Password   string `json:"password" validate:"required,min=8"`
+		RememberMe bool   `json:"remember_me"`
+	}
+
+	RegisterRequest struct {
+		Email    string `json:"email" validate:"required,email"`
+		Password string `json:"password" validate:"required,min=8"`
+		Name     string `json:"name" validate:"required,min=1,max=100"`
+	}
+
+	RefreshTokenRequest struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
 	}
 
 	LoginResponse struct {
-		User  UserDTO `json:"user"`
-		Token string  `json:"token"`
+		User         UserDTO `json:"user"`
+		Token        string  `json:"token"`
+		RefreshToken string  `json:"refresh_token"`
 	}
 
 	UserDTO struct {
@@ -23,75 +33,44 @@ type (
 		Name  string `json:"name"`
 	}
 
-	RegisterRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Name     string `json:"name"`
-	}
-
 	RegisterResponse struct {
 		User UserDTO `json:"user"`
 	}
 
-	RefreshTokenRequest struct {
+	LogoutRequest struct {
 		RefreshToken string `json:"refresh_token"`
 	}
 
 	RefreshTokenResponse struct {
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 )
 
 func (r *LoginRequest) Validate() error {
-	if r.Email == "" {
-		return errors.New(errors.ErrValidation, "email is required")
+	v := pkgValidator.NewValidate()
+	if err := v.ValidateStruct(r); err != nil {
+		return err
 	}
 
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	if !emailRegex.MatchString(r.Email) {
-		return errors.New(errors.ErrValidation, "email format is invalid")
-	}
-
-	if r.Password == "" {
-		return errors.New(errors.ErrValidation, "password is required")
-	}
-
-	if len(r.Password) < 8 {
-		return errors.New(errors.ErrValidation, "password must be at least 8 characters")
-	}
-
-	return nil
+	return v.ValidatePassword(r.Password)
 }
 
 func (r *RegisterRequest) Validate() error {
-	if r.Email == "" {
-		return errors.New(errors.ErrValidation, "email is required")
+	v := pkgValidator.NewValidate()
+	if err := v.ValidateStruct(r); err != nil {
+		return err
 	}
 
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	if !emailRegex.MatchString(r.Email) {
-		return errors.New(errors.ErrValidation, "email is required")
-	}
-
-	if r.Password == "" {
-		return errors.New(errors.ErrValidation, "password is required")
-	}
-
-	if len(r.Password) < 8 {
-		return errors.New(errors.ErrValidation, "password must be at least 8 characters")
-	}
-
-	if r.Name == "" {
-		return errors.New(errors.ErrValidation, "name is required")
-	}
-
-	return nil
+	return v.ValidatePassword(r.Password)
 }
 
 func (r *RefreshTokenRequest) Validate() error {
-	if r.RefreshToken == "" {
-		return errors.New(errors.ErrValidation, "refresh_token is required")
-	}
+	v := pkgValidator.NewValidate()
+	return v.ValidateStruct(r)
+}
 
-	return nil
+func (r *LogoutRequest) Validate() error {
+	v := pkgValidator.NewValidate()
+	return v.ValidateStruct(r)
 }

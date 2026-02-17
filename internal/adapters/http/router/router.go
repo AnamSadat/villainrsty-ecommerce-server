@@ -31,10 +31,24 @@ func New(container *app.Container) *chi.Mux {
 	}))
 
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte("Hello World"))
+		httpx.JSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"message": "Server API Villainrsty Ecommerce is running",
+		})
 	})
 
 	r.Get("/health", healtHandler)
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		httpx.ErrorWithDetails(
+			w,
+			http.StatusNotFound,
+			"Route not found",
+			"NOT_FOUND",
+			map[string]any{
+				"path":   r.URL.Path,
+				"method": r.Method,
+			})
+	})
 
 	r.Get("/openapi.yml", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./openapi.yml")

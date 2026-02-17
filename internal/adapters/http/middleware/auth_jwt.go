@@ -15,13 +15,13 @@ func AuthJWT(jwtService ports.JWTService) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := extractToken(r)
 			if token == "" {
-				httpx.Error(w, http.StatusUnauthorized, "missing authorization token")
+				httpx.Error(w, http.StatusUnauthorized, "missing authorization token", "MISSING_AUTHORIZATION_TOKEN")
 				return
 			}
 
 			user, err := jwtService.ValidateToken(token)
 			if err != nil {
-				httpx.Error(w, http.StatusUnauthorized, "invalid token")
+				httpx.ErrorWithDetails(w, http.StatusUnauthorized, "invalid token", "INVALID_TOKEN", err.Error())
 				return
 			}
 

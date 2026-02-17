@@ -80,6 +80,7 @@ const getUserByID = `-- name: GetUserByID :one
 SELECT id, email, password, name, created_at, updated_at
 FROM users
 WHERE id = $1
+LIMIT 1
 `
 
 type GetUserByIDRow struct {
@@ -127,6 +128,22 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 		arg.Name,
 		arg.UpdatedAt,
 	)
+	return err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users
+SET password = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID       string `json:"id"`
+	Password string `json:"password"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.Password)
 	return err
 }
 

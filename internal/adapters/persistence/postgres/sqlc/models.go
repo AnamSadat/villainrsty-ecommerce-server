@@ -8,6 +8,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type PasswordResetToken struct {
+	ID        string           `json:"id"`
+	UserID    string           `json:"user_id"`
+	TokenHash string           `json:"token_hash"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+	UsedAt    pgtype.Timestamp `json:"used_at"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+type RefreshToken struct {
+	ID        string           `json:"id"`
+	UserID    string           `json:"user_id"`
+	TokenHash string           `json:"token_hash"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+	RevokedAt pgtype.Timestamp `json:"revoked_at"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
+}
+
 type User struct {
 	ID        string           `json:"id"`
 	Email     string           `json:"email"`

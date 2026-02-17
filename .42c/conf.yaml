@@ -1,0 +1,3 @@
+apis:
+  OpenAPI.yml:
+    alias: villainrsty-ecommerce-api

@@ -113,9 +113,21 @@ func (r *UserRepository) Exist(ctx context.Context, email string) (bool, error) 
 	return exists, nil
 }
 
-func (r *UserRepository) UpdateUserPassword(ctx context.Context, id string, hashed string) error {
-	if err := r.validator.ValidateRequired("id", id); err != nil {
+func (r *UserRepository) UpdateUserPassword(ctx context.Context, id models.ID, hashed string) error {
+	if err := r.validator.ValidateRequired("id", id.String()); err != nil {
 		return appErr.Wrap(appErr.ErrValidation, "invalid id", err)
+	}
+
+	if err := r.validator.ValidateRequired("password", hashed); err != nil {
+		return appErr.Wrap(appErr.ErrValidation, "invalid password", err)
+	}
+
+	err := r.queries.UpdateUserPassword(ctx, sqlc.UpdateUserPasswordParams{
+		ID:       id.String(),
+		Password: hashed,
+	})
+	if err != nil {
+		return appErr.Wrap(appErr.ErrInternal, "failed to update user password", err)
 	}
 
 	return nil

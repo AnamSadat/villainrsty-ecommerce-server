@@ -27,7 +27,7 @@ func (r *PasswordResetTokenRepository) Save(ctx context.Context, t *models.Passw
 	}
 
 	return r.q.CreatePasswordResetToken(ctx, sqlc.CreatePasswordResetTokenParams{
-		ID:        t.UserID.String(),
+		ID:        t.ID.String(),
 		UserID:    t.UserID.String(),
 		TokenHash: t.TokenHash,
 		ExpiresAt: pgtype.Timestamp{Time: t.ExpiresAt, Valid: true},

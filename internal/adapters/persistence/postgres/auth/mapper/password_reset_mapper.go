@@ -15,7 +15,7 @@ func SQLPasswordResetTokenToDomain(t sqlc.PasswordResetToken) (*models.PasswordR
 
 	return &models.PasswordResetToken{
 		ID:        models.ID(t.ID),
-		UserID:    models.ID(t.ID),
+		UserID:    models.ID(t.UserID),
 		TokenHash: t.TokenHash,
 		ExpiresAt: t.ExpiresAt.Time,
 		UsedAt:    usedAt,

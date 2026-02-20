@@ -21,10 +21,17 @@ type (
 		RefreshToken string `json:"refresh_token" validate:"required"`
 	}
 
-	LoginResponse struct {
-		User         UserDTO `json:"user"`
-		Token        string  `json:"token"`
-		RefreshToken string  `json:"refresh_token"`
+	LogoutRequest struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+
+	ForgotPasswordRequest struct {
+		Email string `json:"email" validate:"required,email"`
+	}
+
+	ResetPasswordRequest struct {
+		Token       string `json:"token" validate:"required"`
+		NewPassword string `json:"new_password" validate:"required,min=8"`
 	}
 
 	UserDTO struct {
@@ -37,8 +44,10 @@ type (
 		User UserDTO `json:"user"`
 	}
 
-	LogoutRequest struct {
-		RefreshToken string `json:"refresh_token"`
+	LoginResponse struct {
+		User         UserDTO `json:"user"`
+		Token        string  `json:"token"`
+		RefreshToken string  `json:"refresh_token"`
 	}
 
 	RefreshTokenResponse struct {
@@ -73,4 +82,18 @@ func (r *RefreshTokenRequest) Validate() error {
 func (r *LogoutRequest) Validate() error {
 	v := pkgValidator.NewValidate()
 	return v.ValidateStruct(r)
+}
+
+func (r *ForgotPasswordRequest) Validate() error {
+	v := pkgValidator.NewValidate()
+	return v.ValidateStruct(r)
+}
+
+func (r *ResetPasswordRequest) Validate() error {
+	v := pkgValidator.NewValidate()
+	if err := v.ValidateStruct(r); err != nil {
+		return err
+	}
+
+	return v.ValidatePassword(r.NewPassword)
 }

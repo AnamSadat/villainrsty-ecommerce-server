@@ -30,14 +30,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
 	user, accessToken, refreshToken, err := h.authService.Login(r.Context(), req.Email, req.Password, req.RememberMe)
 	if err != nil {
 		h.logger.Warn("login failed", "email", req.Email, "error", err.Error())
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
@@ -47,7 +47,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: refreshToken,
 	}
 
-	httpx.Success(w, http.StatusOK, "Login susccessfully", resp)
+	httpx.Success(w, http.StatusOK, "Login succcessfully", resp)
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -58,19 +58,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
 	user, err := h.authService.Register(r.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
-	resp := models.RegisterResponse{
-		User: mapUserToDTO(user),
-	}
+	resp := models.RegisterResponse{User: mapUserToDTO(user)}
 
 	httpx.Success(w, http.StatusOK, "User registered successfully", resp)
 }
@@ -83,13 +81,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
-	err := h.authService.Logout(r.Context(), req.RefreshToken)
-	if err != nil {
-		h.hanlderError(w, err)
+	if err := h.authService.Logout(r.Context(), req.RefreshToken); err != nil {
+		h.handlerError(w, err)
 		return
 	}
 
@@ -107,14 +104,14 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	if err := req.Validate(); err != nil {
 		h.logger.Info("req di handler", "validate di dalam", req.Validate())
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
 	accessToken, refreshToken, err := h.authService.RefreshToken(r.Context(), req.RefreshToken)
 	if err != nil {
 		fmt.Println("masuk ke sini")
-		h.hanlderError(w, err)
+		h.handlerError(w, err)
 		return
 	}
 
@@ -126,7 +123,46 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	httpx.Success(w, http.StatusOK, "Token refreshed successfully", resp)
 }
 
-func (h *AuthHandler) hanlderError(w http.ResponseWriter, err error) {
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req models.ForgotPasswordRequest
+
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		h.handlerError(w, err)
+		return
+	}
+
+	if err := h.authService.RequestPasswordReset(r.Context(), req.Email); err != nil {
+		h.handlerError(w, err)
+	}
+
+	httpx.Success(w, http.StatusOK, "Request berhasil, link akan segera dikirim", "")
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req models.ResetPasswordRequest
+
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		h.handlerError(w, err)
+		return
+	}
+
+	if err := h.authService.ConfirmPasswordReset(r.Context(), req.Token, req.NewPassword); err != nil {
+		h.handlerError(w, err)
+		return
+	}
+
+	httpx.Success(w, http.StatusOK, "Password berhasil direset", "")
+}
+
+func (h *AuthHandler) handlerError(w http.ResponseWriter, err error) {
 	appErr, ok := errors.AsAppError(err)
 	if !ok {
 		h.logger.Error("internal server error", "error", err.Error())

@@ -13,6 +13,8 @@ type (
 		RefreshToken(ctx context.Context, refreshToken string) (string, string, error)
 		ValidateToken(ctx context.Context, token string) (*models.User, error)
 		Logout(ctx context.Context, refreshToken string) error
+		RequestPasswordReset(ctx context.Context, email string) error
+		ConfirmPasswordReset(ctx context.Context, token, newPassword string) error
 	}
 
 	EmailSender interface {

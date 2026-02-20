@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"log/slog"
+	"net/url"
 	"time"
 
 	"villainrsty-ecommerce-server/internal/core/auth/ports"
@@ -11,29 +14,41 @@ import (
 )
 
 type AuthService struct {
-	userRepo         ports.UserRepository
-	refreshTokenRepo ports.RefreshTokenRepository
-	hasher           ports.PasswordHasher
-	tokenHasher      ports.TokenHasher
-	jwtService       ports.JWTService
-	logger           *slog.Logger
+	userRepo          ports.UserRepository
+	refreshTokenRepo  ports.RefreshTokenRepository
+	passwordResetRepo ports.PasswordResetTokenRepository
+	emailSender       ports.EmailSender
+	hasher            ports.PasswordHasher
+	tokenHasher       ports.TokenHasher
+	jwtService        ports.JWTService
+	logger            *slog.Logger
+	resetURL          string
+	resetTTL          time.Duration
 }
 
 func NewAuthService(
 	userRepo ports.UserRepository,
 	refreshTokenRepo ports.RefreshTokenRepository,
+	passwordResetRepo ports.PasswordResetTokenRepository,
+	emailSender ports.EmailSender,
 	hasher ports.PasswordHasher,
 	tokenHasher ports.TokenHasher,
 	jwtService ports.JWTService,
 	logger *slog.Logger,
+	resetURL string,
+	resetTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
-		userRepo:         userRepo,
-		hasher:           hasher,
-		tokenHasher:      tokenHasher,
-		refreshTokenRepo: refreshTokenRepo,
-		jwtService:       jwtService,
-		logger:           logger,
+		userRepo:          userRepo,
+		hasher:            hasher,
+		tokenHasher:       tokenHasher,
+		passwordResetRepo: passwordResetRepo,
+		emailSender:       emailSender,
+		refreshTokenRepo:  refreshTokenRepo,
+		jwtService:        jwtService,
+		logger:            logger,
+		resetURL:          resetURL,
+		resetTTL:          resetTTL,
 	}
 }
 
@@ -196,7 +211,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (st
 	}
 
 	if err := s.refreshTokenRepo.Revoke(ctx, dbToken.ID); err != nil {
-		s.logger.Error("failed to revoke old refresh token", err)
+		s.logger.Error("failed to revoke old refresh token", "[ERROR]:", err)
 	}
 
 	return accessToken, newRefreshTokenString, nil
@@ -215,4 +230,122 @@ func (s *AuthService) ValidateToken(ctx context.Context, token string) (*models.
 	return user, nil
 }
 
-func (s *AuthService) UpdateUserPassword()
+func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) error {
+	if email == "" {
+		return errors.New(errors.ErrValidation, "email is required")
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.IsKind(err, errors.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	rawToken, err := generateSecureToken(32)
+	if err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to generate reset token", err)
+	}
+
+	tokenHash, err := s.tokenHasher.Hash(rawToken)
+	if err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to hash reset token", err)
+	}
+
+	resetToken := &models.PasswordResetToken{
+		ID:        models.NewID(),
+		UserID:    user.ID,
+		TokenHash: tokenHash,
+		ExpiresAt: time.Now().Add(s.resetTTL),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.passwordResetRepo.Save(ctx, resetToken); err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to save password reset token", err)
+	}
+
+	resetLink, err := buildResetLink(s.resetURL, rawToken)
+	if err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to build reset link", err)
+	}
+	s.logger.Info("sending reset email", "to", email, "link", resetLink)
+
+	if err := s.emailSender.SendPasswordReset(ctx, user.Email, resetLink); err != nil {
+		s.logger.Error("failed to send reset email", "to", email, "err", err)
+		return errors.Wrap(errors.ErrInternal, "failed to send reset email", err)
+	}
+	s.logger.Info("reset email sent", "to", email)
+
+	return nil
+}
+
+func (s *AuthService) ConfirmPasswordReset(ctx context.Context, token, newPassword string) error {
+	if token == "" {
+		return errors.New(errors.ErrValidation, "token is required")
+	}
+
+	if newPassword == "" {
+		return errors.New(errors.ErrValidation, "new password is required")
+	}
+
+	tokenHash, err := s.tokenHasher.Hash(token)
+	if err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to hash reset token", err)
+	}
+
+	dbToken, err := s.passwordResetRepo.GetByTokenHash(ctx, tokenHash)
+	if err != nil {
+		if errors.IsKind(err, errors.ErrNotFound) {
+			return errors.New(errors.ErrUnauthorized, "invalid reset token")
+		}
+		return err
+	}
+
+	if !dbToken.IsValid() {
+		return errors.New(errors.ErrUnauthorized, "invalid reset token")
+	}
+
+	if !models.NewUser("temp@mail.com", newPassword, "temp").IsPasswordValid(newPassword) {
+		return errors.New(errors.ErrValidation, "password must contain uppercase, lowercase and number")
+	}
+
+	hashedPassword, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to hash password", err)
+	}
+
+	if err := s.userRepo.UpdateUserPassword(ctx, dbToken.UserID, hashedPassword); err != nil {
+		return err
+	}
+
+	if err := s.passwordResetRepo.MarkUsed(ctx, dbToken.ID); err != nil {
+		return errors.Wrap(errors.ErrInternal, "failed to mark reset token used", err)
+	}
+	return nil
+}
+
+func generateSecureToken(size int) (string, error) {
+	b := make([]byte, size)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func buildResetLink(baseURL, token string) (string, error) {
+	if baseURL == "" {
+		return "", errors.New(errors.ErrInternal, "reset base url is empty")
+	}
+
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return "", err
+	}
+
+	q := u.Query()
+	q.Set("token", token)
+	u.RawQuery = q.Encode()
+
+	return u.String(), nil
+}

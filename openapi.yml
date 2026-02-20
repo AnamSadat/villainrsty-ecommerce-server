@@ -1,4 +1,4 @@
-openapi: "3.0.3"
+openapi: 3.0.3
 info:
   title: Villainrsty Ecommerce API
   version: "1.0.0"
@@ -9,7 +9,6 @@ info:
     name: API Support
     email: support@villainrsty.com
 
-# URL Server (Bisa diganti-ganti di Swagger UI)
 servers:
   - url: http://localhost:8080
     description: Local Development
@@ -25,14 +24,15 @@ tags:
     description: Health check and general info
   - name: Products
     description: Operations related to product inventory
+  - name: Auth
+    description: Authentication endpoints
 
 paths:
-  # --- ENDPOINT 1: Health Check (Simple Object) ---
   /:
     get:
       tags:
         - General
-      summary: Health Check
+      summary: Index
       operationId: healthCheck
       responses:
         "200":
@@ -40,59 +40,54 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "System Operational"
+                $ref: "#/components/schemas/HealthCheckResponse"
 
-  # --- ENDPOINT 2: Get List Products (ARRAY + PAGINATION) ---
   /products:
     get:
       tags:
         - Products
-      summary: Get all products
-      description: Retrieve a list of products with pagination support.
+      summary: Get list of products
+      operationId: listProducts
       parameters:
         - in: query
           name: page
           schema:
             type: integer
+            minimum: 1
             default: 1
-          description: Page number
+          description: Page number (starts from 1)
         - in: query
           name: limit
           schema:
             type: integer
+            minimum: 1
+            maximum: 100
             default: 10
           description: Items per page
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Optional search keyword
       responses:
         "200":
-          description: Success retrieving products
+          description: Products fetched successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array # <--- INI CARA BIKIN ARRAY
-                    items:
-                      $ref: "#/components/schemas/Product" # Panggil cetakan Product
-                  meta:
-                    $ref: "#/components/schemas/PaginationMeta"
+                $ref: "#/components/schemas/ProductListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "500":
           $ref: "#/components/responses/InternalError"
 
-    # --- ENDPOINT 3: Create Product (REQUEST BODY) ---
     post:
       tags:
         - Products
       summary: Create a new product
+      operationId: createProduct
       security:
-        - bearerAuth: [] # Endpoint ini butuh Login (Gembok)
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -110,18 +105,66 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
-# --- COMPONENTS: GUDANG CETAKAN (BLUEPRINTS) ---
-# Di sini kita mendefinisikan struktur data biar bisa dipakai ulang (Reusability)
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Request password reset link
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericSuccess"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Confirm password reset
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericSuccess"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
-  # 1. Security Schemes (JWT)
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
 
-  # 2. Standard Responses (Biar gak ngetik error berulang)
   responses:
     BadRequest:
       description: Invalid Input / Bad Request
@@ -129,12 +172,14 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+
     Unauthorized:
       description: Authentication failed (Token missing or invalid)
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+
     InternalError:
       description: Internal Server Error
       content:
@@ -142,60 +187,65 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
 
-  # 3. Schemas (Model Data)
   schemas:
-    # Model Product (Output lengkap dengan ID)
-    Product:
+    # ---------- General ----------
+    HealthCheckResponse:
       type: object
       properties:
-        id:
-          type: integer
-          format: int64
-          example: 101
-        name:
+        status:
+          type: boolean
+          example: true
+        message:
           type: string
-          example: "Gaming Keyboard RGB"
-        price:
-          type: number
-          format: double
-          example: 750000.00
-        category:
-          type: string
-          example: "Electronics"
-        tags:
-          type: array # <--- Array of Strings
-          items:
-            type: string
-          example: ["gaming", "rgb", "keyboard"]
+          example: System Operational
       required:
-        - id
-        - name
-        - price
+        - status
+        - message
 
-    # Model Product Input (Buat POST, tanpa ID)
+    # ---------- Products ----------
     ProductInput:
       type: object
       properties:
         name:
           type: string
-          minLength: 3
-          example: "Gaming Mouse Wireless"
+          example: "Sepatu Lari"
+        description:
+          type: string
+          example: "Sepatu lari ringan dan nyaman"
         price:
           type: number
-          minimum: 0
-          example: 450000
-        category:
+          format: float
+          example: 199000
+        stock:
+          type: integer
+          example: 10
+        image_url:
           type: string
-          example: "Electronics"
-        tags:
-          type: array
-          items:
-            type: string
+          example: "https://cdn.villainrsty.com/products/sepatu.jpg"
       required:
         - name
         - price
+        - stock
 
-    # Model Pagination Meta (Standar industri buat paging)
+    Product:
+      allOf:
+        - $ref: "#/components/schemas/ProductInput"
+        - type: object
+          properties:
+            id:
+              type: string
+              example: "prod_123"
+            created_at:
+              type: string
+              format: date-time
+              example: "2026-02-20T08:00:00+07:00"
+            updated_at:
+              type: string
+              format: date-time
+              example: "2026-02-20T08:00:00+07:00"
+          required:
+            - id
+
     PaginationMeta:
       type: object
       properties:
@@ -208,8 +258,75 @@ components:
         total_items:
           type: integer
           example: 50
+        limit:
+          type: integer
+          example: 10
+      required:
+        - current_page
+        - total_pages
+        - total_items
+        - limit
 
-    # Model Error Standard
+    ProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: OK
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - success
+        - message
+        - data
+        - meta
+
+    # ---------- Auth ----------
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@mail.com
+      required:
+        - email
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          example: reset_token_string
+        new_password:
+          type: string
+          minLength: 8
+          example: NewPass123
+      required:
+        - token
+        - new_password
+
+    GenericSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: OK
+      required:
+        - success
+        - message
+
+    # ---------- Error ----------
     Error:
       type: object
       properties:
@@ -218,4 +335,10 @@ components:
           example: 400
         message:
           type: string
-          example: "Validation failed for field 'price'"
+          example: "Validation failed"
+        details:
+          nullable: true
+          description: Optional extra info
+      required:
+        - code
+        - message

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"villainrsty-ecommerce-server/internal/adapters/http/auth/handler"
+	"villainrsty-ecommerce-server/internal/adapters/notifications/smtp"
 	"villainrsty-ecommerce-server/internal/adapters/persistence/postgres"
 	"villainrsty-ecommerce-server/internal/adapters/persistence/postgres/auth/repository"
 	tokenHasher "villainrsty-ecommerce-server/internal/adapters/security/hasher"
@@ -17,21 +18,38 @@ import (
 
 type Container struct {
 	AuthHandler *handler.AuthHandler
-	AuthService *service.AuthService
 }
 
 func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 	queries := postgres.NewQueries(db)
 	userRepo := repository.NewUserRepository(queries)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(queries)
+	passwordResetRepo := repository.NewPasswordResetTokenRepository(queries)
 	hasher := password.NewBcryptHasher()
 	tokenHasher := tokenHasher.NewSHA256TokenHasher()
 	jwtService := jwtService.NewJWTService(cfg.CookieSecret)
-	authService := service.NewAuthService(userRepo, refreshTokenRepo, hasher, tokenHasher, jwtService, logger)
+	emailSender := smtp.NewEmailSender(
+		cfg.SMTPHost,
+		cfg.SMTPPort,
+		cfg.SMTPUsername,
+		cfg.SMTPPassword,
+		cfg.SMTPFromEmail,
+		cfg.SMTPFromName)
+	authService := service.NewAuthService(
+		userRepo,
+		refreshTokenRepo,
+		passwordResetRepo,
+		emailSender,
+		hasher,
+		tokenHasher,
+		jwtService,
+		logger,
+		cfg.ResetPasswordURL,
+		cfg.ResetPasswordTTL,
+	)
 	authHandler := handler.NewAuthHandler(authService, logger)
 
 	return &Container{
 		AuthHandler: authHandler,
-		AuthService: authService,
 	}
 }

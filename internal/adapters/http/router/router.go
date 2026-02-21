@@ -6,8 +6,10 @@ import (
 	"runtime"
 	"time"
 
-	"villainrsty-ecommerce-server/internal/adapters/http/auth/routes"
-	"villainrsty-ecommerce-server/internal/adapters/http/httpx"
+	authRoutes "villainrsty-ecommerce-server/internal/adapters/http/auth/routes"
+	"villainrsty-ecommerce-server/internal/adapters/http/lib/httpx"
+	httpmiddleware "villainrsty-ecommerce-server/internal/adapters/http/middleware"
+	rbacRoutes "villainrsty-ecommerce-server/internal/adapters/http/rbac/routes"
 	"villainrsty-ecommerce-server/internal/app"
 
 	"github.com/go-chi/chi/v5"
@@ -62,7 +64,13 @@ func New(container *app.Container) *chi.Mux {
 		"/docs",
 	))
 
-	routes.RegisterRoute(r, container.AuthHandler)
+	authRoutes.RegisterRoute(r, container.AuthHandler)
+
+	r.Group(func(r chi.Router) {
+		r.Use(httpmiddleware.AuthJWT(container.JWTService))
+		r.Use(httpmiddleware.CasbinRBAC(container.CasbinEnforcer))
+		rbacRoutes.RegisterRbacRoute(r, container.RbacHandler)
+	})
 
 	return r
 }

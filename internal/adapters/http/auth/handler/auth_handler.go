@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"villainrsty-ecommerce-server/internal/adapters/http/auth/models"
-	"villainrsty-ecommerce-server/internal/adapters/http/httpx"
+	"villainrsty-ecommerce-server/internal/adapters/http/lib/httpx"
 	"villainrsty-ecommerce-server/internal/core/auth/ports"
 	"villainrsty-ecommerce-server/internal/core/shared/errors"
 

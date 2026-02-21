@@ -63,6 +63,35 @@ air
 
 Server runs on `http://localhost:3000`
 
+## Casbin RBAC Quick Start
+
+Project ini sudah include RBAC Casbin untuk route yang merepresentasikan alur real project:
+
+- Products: `GET /products`, `POST /products`, `PATCH /products/{id}`, `DELETE /products/{id}`
+- Orders: `GET /orders`, `POST /orders`
+- Admin Users: `GET /admin/users`, `POST /admin/users`, `DELETE /admin/users/{id}`
+
+### 1 Konfigurasi env
+
+Tambahkan env berikut:
+
+```env
+CASBIN_MODEL_PATH=configs/casbin_model.conf
+CASBIN_POLICY_PATH=configs/casbin_policy.csv
+
+# Mapping role berbasis email
+RBAC_ADMIN_EMAILS=admin@mail.com
+RBAC_STAFF_EMAILS=staff@mail.com,ops@mail.com
+```
+
+### 2 Login dan akses endpoint RBAC
+
+1. Login pakai endpoint auth untuk dapat access token.
+2. Kirim header `Authorization: Bearer <access_token>`.
+3. Panggil endpoint `/products`, `/orders`, `/admin/users` sesuai role.
+
+Jika role tidak punya akses -> response `403 FORBIDDEN`.
+
 ## License
 
 MIT

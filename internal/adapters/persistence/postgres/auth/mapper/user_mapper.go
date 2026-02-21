@@ -14,6 +14,7 @@ func SQLCUserByEmailToDomain(sqlcUser sqlc.GetUserByEmailRow) *models.User {
 		Email:     sqlcUser.Email,
 		Password:  sqlcUser.Password,
 		Name:      sqlcUser.Name,
+		Role:      "customer",
 		CreatedAt: sqlcUser.CreatedAt.Time,
 		UpdatedAt: sqlcUser.UpdatedAt.Time,
 	}
@@ -25,6 +26,7 @@ func SQLCUserByIDToDomain(sqlcUser sqlc.GetUserByIDRow) *models.User {
 		Email:     sqlcUser.Email,
 		Password:  sqlcUser.Password,
 		Name:      sqlcUser.Name,
+		Role:      "customer",
 		CreatedAt: sqlcUser.CreatedAt.Time,
 		UpdatedAt: sqlcUser.UpdatedAt.Time,
 	}

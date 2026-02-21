@@ -1,0 +1,12 @@
+# customer
+p, customer, /products/*, GET
+p, customer, /orders/*, (GET|POST)
+
+# staff
+p, staff, /products/*, (GET|POST|PATCH)
+p, staff, /orders/*, GET
+
+# admin
+p, admin, /products/*, (GET|POST|PATCH|DELETE)
+p, admin, /orders/*, (GET|POST|PATCH|DELETE)
+p, admin, /admin/users/*, (GET|POST|DELETE)

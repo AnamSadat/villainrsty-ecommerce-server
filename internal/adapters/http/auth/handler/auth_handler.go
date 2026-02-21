@@ -50,6 +50,61 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	httpx.Success(w, http.StatusOK, "Login succcessfully", resp)
 }
 
+func (h *AuthHandler) Login2FA(w http.ResponseWriter, r *http.Request) {
+	var req models.Login2FARequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		h.handlerError(w, err)
+		return
+	}
+
+	challengeID, err := h.authService.LoginWith2FA(r.Context(), req.Email, req.Password, req.RememberMe)
+	if err != nil {
+		h.handlerError(w, err)
+		return
+	}
+
+	resp := models.Login2FAResponse{ChallengeID: challengeID}
+
+	httpx.Success(w, http.StatusOK, "OTP send to email", resp)
+}
+
+func (h *AuthHandler) VerifyLogin2FA(w http.ResponseWriter, r *http.Request) {
+	var req models.VerifyLogin2FARequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	h.logger.Info("isinya",
+		"challenge_id", req.ChallengeID,
+		"otp_code", req.OTPCode,
+		"remember", req.RememberMe,
+	)
+
+	if err := req.Validate(); err != nil {
+		h.logger.Info("error validate", "error", err)
+		h.handlerError(w, err)
+		return
+	}
+
+	user, accessToken, refreshToken, err := h.authService.VerifyLogin2FA(r.Context(), req.ChallengeID, req.OTPCode, req.RememberMe)
+	if err != nil {
+		h.logger.Info("ke error verify", "error", err)
+		h.handlerError(w, err)
+		return
+	}
+
+	resp := models.LoginResponse{
+		User:         mapUserToDTO(user),
+		Token:        accessToken,
+		RefreshToken: refreshToken,
+	}
+
+	httpx.Success(w, http.StatusOK, "2FA verified successfully", resp)
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
 

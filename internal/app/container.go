@@ -25,6 +25,7 @@ func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 	userRepo := repository.NewUserRepository(queries)
 	refreshTokenRepo := repository.NewRefreshTokenRepository(queries)
 	passwordResetRepo := repository.NewPasswordResetTokenRepository(queries)
+	twoFactorOTPRepo := repository.NewTwoFactorOTPRepository(queries)
 	hasher := password.NewBcryptHasher()
 	tokenHasher := tokenHasher.NewSHA256TokenHasher()
 	jwtService := jwtService.NewJWTService(cfg.CookieSecret)
@@ -39,6 +40,7 @@ func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 		userRepo,
 		refreshTokenRepo,
 		passwordResetRepo,
+		twoFactorOTPRepo,
 		emailSender,
 		hasher,
 		tokenHasher,
@@ -46,6 +48,7 @@ func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 		logger,
 		cfg.ResetPasswordURL,
 		cfg.ResetPasswordTTL,
+		cfg.TwoFactorOTPTTL,
 	)
 	authHandler := handler.NewAuthHandler(authService, logger)
 

@@ -31,6 +31,11 @@ type (
 		DeleteExpired(ctx context.Context) error
 	}
 
+	UserRoleRepository interface {
+		AssignRole(ctx context.Context, userID models.ID, roleName string) error
+		GetPrimaryRoleByUser(ctx context.Context, userID models.ID) (string, error)
+	}
+
 	PasswordHasher interface {
 		Hash(password string) (string, error)
 		Verify(hash, password string) bool

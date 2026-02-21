@@ -29,6 +29,7 @@ func (s *JWTService) GenerateAccessToken(user *models.User) (string, error) {
 		UserID: user.ID.String(),
 		Email:  user.Email,
 		Name:   user.Name,
+		Role:   user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.accessTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -50,6 +51,7 @@ func (s *JWTService) GenerateRefreshToken(user *models.User) (string, error) {
 		UserID: user.ID.String(),
 		Email:  user.Email,
 		Name:   user.Name,
+		Role:   user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(s.refreshTokenExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -87,6 +89,7 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.User, error) {
 		ID:    models.ID(claims.UserID),
 		Email: claims.Email,
 		Name:  claims.Name,
+		Role:  claims.Role,
 	}
 
 	return user, nil

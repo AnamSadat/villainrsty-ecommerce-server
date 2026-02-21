@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"log/slog"
+	"math/big"
 	"net/url"
 	"time"
 
@@ -17,6 +18,7 @@ type AuthService struct {
 	userRepo          ports.UserRepository
 	refreshTokenRepo  ports.RefreshTokenRepository
 	passwordResetRepo ports.PasswordResetTokenRepository
+	twoFactorOTPRepo  ports.TwoFactorOTPRepository
 	emailSender       ports.EmailSender
 	hasher            ports.PasswordHasher
 	tokenHasher       ports.TokenHasher
@@ -24,12 +26,14 @@ type AuthService struct {
 	logger            *slog.Logger
 	resetURL          string
 	resetTTL          time.Duration
+	twoFactorOTPTTL   time.Duration
 }
 
 func NewAuthService(
 	userRepo ports.UserRepository,
 	refreshTokenRepo ports.RefreshTokenRepository,
 	passwordResetRepo ports.PasswordResetTokenRepository,
+	twoFactorOTPRepo ports.TwoFactorOTPRepository,
 	emailSender ports.EmailSender,
 	hasher ports.PasswordHasher,
 	tokenHasher ports.TokenHasher,
@@ -37,18 +41,21 @@ func NewAuthService(
 	logger *slog.Logger,
 	resetURL string,
 	resetTTL time.Duration,
+	twoFactorOTPTTL time.Duration,
 ) *AuthService {
 	return &AuthService{
 		userRepo:          userRepo,
 		hasher:            hasher,
 		tokenHasher:       tokenHasher,
 		passwordResetRepo: passwordResetRepo,
+		twoFactorOTPRepo:  twoFactorOTPRepo,
 		emailSender:       emailSender,
 		refreshTokenRepo:  refreshTokenRepo,
 		jwtService:        jwtService,
 		logger:            logger,
 		resetURL:          resetURL,
 		resetTTL:          resetTTL,
+		twoFactorOTPTTL:   twoFactorOTPTTL,
 	}
 }
 
@@ -99,6 +106,118 @@ func (s *AuthService) Login(ctx context.Context, email, password string, remembe
 	}
 
 	refreshToken := models.NewRefreshToken(user.ID, tokenHash, ttl)
+	if err := s.refreshTokenRepo.Save(ctx, refreshToken); err != nil {
+		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to save refresh token", err)
+	}
+
+	return user, accessToken, refreshTokenString, nil
+}
+
+func (s *AuthService) LoginWith2FA(ctx context.Context, email, password string, _ bool) (string, error) {
+	if email == "" || password == "" {
+		return "", errors.New(errors.ErrValidation, "email and password is required")
+	}
+
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		return "", errors.New(errors.ErrUnauthorized, "invalid email or password")
+	}
+
+	if !s.hasher.Verify(user.Password, password) {
+		return "", errors.New(errors.ErrUnauthorized, "invalid email or password")
+	}
+
+	challengeID, err := generateSecureToken(24)
+	if err != nil {
+		return "", errors.Wrap(errors.ErrInternal, "failed to generate challenge", err)
+	}
+
+	otpCode, err := generateNumericOTP(6)
+	if err != nil {
+		return "", errors.Wrap(errors.ErrInternal, "failed to generate otp", err)
+	}
+
+	otpHash, err := s.tokenHasher.Hash(otpCode)
+	if err != nil {
+		return "", errors.Wrap(errors.ErrInternal, "failed to hash otp", err)
+	}
+
+	otp := &models.TwoFactorOTP{
+		ID:          models.NewID(),
+		UserID:      user.ID,
+		ChallengeID: challengeID,
+		CodeHash:    otpHash,
+		ExpiresAt:   time.Now().Add(s.twoFactorOTPTTL),
+		CreatedAt:   time.Now(),
+	}
+
+	if err := s.twoFactorOTPRepo.Save(ctx, otp); err != nil {
+		return "", errors.Wrap(errors.ErrInternal, "failed to save otp", err)
+	}
+
+	if err := s.emailSender.SendLoginOTP(ctx, user.Email, otpCode); err != nil {
+		return "", errors.Wrap(errors.ErrInternal, "failed to send otp", err)
+	}
+
+	return challengeID, nil
+}
+
+func (s *AuthService) VerifyLogin2FA(ctx context.Context, challengeID, otpCode string, rememberMe bool) (*models.User, string, string, error) {
+	if challengeID == "" || otpCode == "" {
+		return nil, "", "", errors.New(errors.ErrValidation, "challenge_id and otp_code is required")
+	}
+
+	otp, err := s.twoFactorOTPRepo.GetByChallengeID(ctx, challengeID)
+	if err != nil {
+		return nil, "", "", errors.New(errors.ErrUnauthorized, "invalid or expired otp")
+	}
+
+	if !otp.IsValid() {
+		return nil, "", "", errors.New(errors.ErrUnauthorized, "invalid or expired otp")
+	}
+
+	hash, err := s.tokenHasher.Hash(otpCode)
+	if err != nil {
+		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to hash otp", err)
+	}
+
+	if hash != otp.CodeHash {
+		return nil, "", "", errors.New(errors.ErrUnauthorized, "invalid or expired otp")
+	}
+
+	if err := s.twoFactorOTPRepo.MarkUsed(ctx, otp.ID); err != nil {
+		s.logger.Info("isi markused", "used_at", otp.ID.String())
+		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to mark otp used", err)
+	}
+
+	user, err := s.userRepo.GetByID(ctx, otp.UserID.String())
+	s.logger.Info("isi otp id", "otp", otp.ID.String())
+	if err != nil {
+		s.logger.Info("error di getbyid verify", "error", err)
+		return nil, "", "", errors.New(errors.ErrUnauthorized, "user not found")
+	}
+
+	accessToken, err := s.jwtService.GenerateAccessToken(user)
+	if err != nil {
+		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to generate access token", err)
+	}
+
+	refreshTokenString, err := s.jwtService.GenerateRefreshToken(user)
+	if err != nil {
+		return nil, "", "", errors.Wrap(errors.ErrUnauthorized, "failed to generate refresh token", err)
+	}
+
+	refreshHash, err := s.tokenHasher.Hash(refreshTokenString)
+	if err != nil {
+		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to hash refresh token", err)
+	}
+
+	ttl := 24 * time.Hour
+	if rememberMe {
+		ttl = 30 * 24 * time.Hour
+	}
+
+	refreshToken := models.NewRefreshToken(user.ID, refreshHash, ttl)
 	if err := s.refreshTokenRepo.Save(ctx, refreshToken); err != nil {
 		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to save refresh token", err)
 	}
@@ -331,6 +450,23 @@ func generateSecureToken(size int) (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func generateNumericOTP(digits int) (string, error) {
+	if digits <= 0 {
+		return "", errors.New(errors.ErrValidation, "invalid otp digits")
+	}
+
+	result := make([]byte, digits)
+	for i := 0; i < digits; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(10))
+		if err != nil {
+			return "", err
+		}
+		result[i] = byte('0' + n.Int64())
+	}
+
+	return string(result), nil
 }
 
 func buildResetLink(baseURL, token string) (string, error) {

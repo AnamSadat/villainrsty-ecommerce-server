@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"villainrsty-ecommerce-server/internal/adapters/http/httpx"
-	"villainrsty-ecommerce-server/internal/core/auth/models"
+	"villainrsty-ecommerce-server/internal/adapters/http/lib/httpx"
 	"villainrsty-ecommerce-server/internal/core/auth/ports"
+	"villainrsty-ecommerce-server/internal/core/shared/models"
 )
 
 func AuthJWT(jwtService ports.JWTService) func(http.Handler) http.Handler {

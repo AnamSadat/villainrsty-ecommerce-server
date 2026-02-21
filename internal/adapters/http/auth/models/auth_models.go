@@ -11,6 +11,18 @@ type (
 		RememberMe bool   `json:"remember_me"`
 	}
 
+	Login2FARequest struct {
+		Email      string `json:"email" validate:"required,email"`
+		Password   string `json:"password" validate:"required,min=8"`
+		RememberMe bool   `json:"remember_me"`
+	}
+
+	VerifyLogin2FARequest struct {
+		ChallengeID string `json:"challenge_id" validate:"required"`
+		OTPCode     string `json:"otp_code" validate:"required,len=6"`
+		RememberMe  bool   `json:"remember_me"`
+	}
+
 	RegisterRequest struct {
 		Email    string `json:"email" validate:"required,email"`
 		Password string `json:"password" validate:"required,min=8"`
@@ -50,6 +62,10 @@ type (
 		RefreshToken string  `json:"refresh_token"`
 	}
 
+	Login2FAResponse struct {
+		ChallengeID string `json:"challenge_id"`
+	}
+
 	RefreshTokenResponse struct {
 		Token        string `json:"token"`
 		RefreshToken string `json:"refresh_token"`
@@ -63,6 +79,20 @@ func (r *LoginRequest) Validate() error {
 	}
 
 	return v.ValidatePassword(r.Password)
+}
+
+func (r *Login2FARequest) Validate() error {
+	v := pkgValidator.NewValidate()
+	if err := v.ValidateStruct(r); err != nil {
+		return err
+	}
+
+	return v.ValidatePassword(r.Password)
+}
+
+func (r *VerifyLogin2FARequest) Validate() error {
+	v := pkgValidator.NewValidate()
+	return v.ValidateStruct(r)
 }
 
 func (r *RegisterRequest) Validate() error {

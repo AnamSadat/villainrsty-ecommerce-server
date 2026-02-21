@@ -16,6 +16,13 @@ type (
 		UpdateUserPassword(ctx context.Context, id models.ID, hashed string) error
 	}
 
+	TwoFactorOTPRepository interface {
+		Save(ctx context.Context, otpCode *models.TwoFactorOTP) error
+		GetByChallengeID(ctx context.Context, challengeID string) (*models.TwoFactorOTP, error)
+		MarkUsed(ctx context.Context, id models.ID) error
+		DeleteExpired(ctx context.Context) error
+	}
+
 	RefreshTokenRepository interface {
 		Save(ctx context.Context, token *models.RefreshToken) error
 		GetByTokenHash(ctx context.Context, tokenHash string) (*models.RefreshToken, error)

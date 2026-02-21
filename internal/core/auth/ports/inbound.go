@@ -9,6 +9,8 @@ import (
 type (
 	AuthService interface {
 		Login(ctx context.Context, email, password string, rememberMe bool) (*models.User, string, string, error)
+		LoginWith2FA(ctx context.Context, email, password string, rememberMe bool) (string, error)
+		VerifyLogin2FA(ctx context.Context, challengeID, otpCode string, rememberMe bool) (*models.User, string, string, error)
 		Register(ctx context.Context, email, password, name string) (*models.User, error)
 		RefreshToken(ctx context.Context, refreshToken string) (string, string, error)
 		ValidateToken(ctx context.Context, token string) (*models.User, error)
@@ -19,5 +21,6 @@ type (
 
 	EmailSender interface {
 		SendPasswordReset(ctx context.Context, toEmail, resetLink string) error
+		SendLoginOTP(ctx context.Context, toEmail, otpCode string) error
 	}
 )

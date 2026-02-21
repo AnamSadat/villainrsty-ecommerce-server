@@ -73,9 +73,45 @@ func (s *EmailSender) SendPasswordReset(ctx context.Context, toEmail, resetLink 
 		log.Printf("[smtp] send OK after=%s to=%s from=%s addr=%s", time.Since(start), toEmail, s.fromEmail, addr)
 
 		return nil
-	case <-time.After(60 * time.Second):
+	case <-time.After(30 * time.Second):
 		log.Printf("[smtp] TIMEOUT after=%s to=%s from=%s addr=%s", time.Since(start), toEmail, s.fromEmail, addr)
 
+		return errors.New(errors.ErrInternal, "smtp timeout")
+	}
+}
+
+func (s *EmailSender) SendLoginOTP(ctx context.Context, toEmail, otpCode string) error {
+	if toEmail == "" {
+		return errors.New(errors.ErrValidation, "email is required")
+	}
+
+	if otpCode == "" {
+		return errors.New(errors.ErrValidation, "otp code is required")
+	}
+
+	subject := "Kode OTP Login"
+	plainBody := fmt.Sprintf("Kode OTP login Anda: %s\nKode berlaku selama beberapa menit.", otpCode)
+	htmlBody := fmt.Sprintf(`<p>Kode OTP Login Anda:</p><h2>%s</h2><p>Kode berlaku selama beberapa menit.</p>`, otpCode)
+
+	msg := buildMIMEMessage(s.fromName, s.fromEmail, toEmail, subject, plainBody, htmlBody)
+	addr := fmt.Sprintf("%s:%s", s.host, s.port)
+	auth := smtp.PlainAuth("", s.username, s.password, s.host)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- smtp.SendMail(addr, auth, s.fromEmail, []string{toEmail}, []byte(msg))
+	}()
+
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(errors.ErrInternal, "email send cancalled", ctx.Err())
+	case err := <-done:
+		if err != nil {
+			return errors.Wrap(errors.ErrInternal, "failed to send email", err)
+		}
+		return nil
+
+	case <-time.After(30 * time.Second):
 		return errors.New(errors.ErrInternal, "smtp timeout")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -15,9 +16,6 @@ type Config struct {
 	AccessTTL  time.Duration
 	RefreshTTL time.Duration
 
-	CookieDomain string
-	CookieSecure bool
-
 	SMTPHost      string
 	SMTPPort      string
 	SMTPUsername  string
@@ -28,6 +26,9 @@ type Config struct {
 	ResetPasswordTTL time.Duration
 	ResetPasswordURL string
 	TwoFactorOTPTTL  time.Duration
+
+	CasbinModelPath  string
+	CasbinPolicyPath string
 }
 
 func MustLoad() Config {
@@ -45,6 +46,8 @@ func MustLoad() Config {
 	resetPasswordTTL := mustDuration("RESET_PASSWORD_TTL", 30*time.Minute)
 	resetPasswordURL := mustEnv("FRONTEND_RESET_PASSWORD_URL")
 	twoFactorOTPTTL := mustDuration("TWO_FACTOR_OTP_TTL", 5*time.Minute)
+	casbinModelPath := mustEnv("CASBIN_MODEL_PATH")
+	casbinPolicyPath := mustEnv("CASBIN_POLICY_PATH")
 
 	return Config{
 		Addr:             addr,
@@ -52,8 +55,6 @@ func MustLoad() Config {
 		CookieSecret:     secret,
 		AccessTTL:        accessTTL,
 		RefreshTTL:       refreshTTL,
-		CookieDomain:     getEnv("COOKIEE_DOMAIN", "localhost"),
-		CookieSecure:     getEnv("COOKIE_SECURE", "false") == "true",
 		SMTPHost:         smtpHost,
 		SMTPPort:         smtpPort,
 		SMTPUsername:     smtpUsername,
@@ -63,6 +64,8 @@ func MustLoad() Config {
 		ResetPasswordTTL: resetPasswordTTL,
 		ResetPasswordURL: resetPasswordURL,
 		TwoFactorOTPTTL:  twoFactorOTPTTL,
+		CasbinModelPath:  casbinModelPath,
+		CasbinPolicyPath: casbinPolicyPath,
 	}
 }
 
@@ -82,6 +85,24 @@ func mustEnv(k string) string {
 	}
 
 	return v
+}
+
+func splitCSV(v string) []string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+
+	return out
 }
 
 func mustDuration(k string, def time.Duration) time.Duration {

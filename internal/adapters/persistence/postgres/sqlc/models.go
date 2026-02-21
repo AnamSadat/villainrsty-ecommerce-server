@@ -27,6 +27,16 @@ type RefreshToken struct {
 	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
+type TwoFactorOtp struct {
+	ID          string           `json:"id"`
+	UserID      string           `json:"user_id"`
+	ChallengeID string           `json:"challenge_id"`
+	CodeHash    string           `json:"code_hash"`
+	ExpiresAt   pgtype.Timestamp `json:"expires_at"`
+	UsedAt      pgtype.Timestamp `json:"used_at"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+}
+
 type User struct {
 	ID        string           `json:"id"`
 	Email     string           `json:"email"`

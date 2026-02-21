@@ -86,6 +86,21 @@ func ErrorWithDetails(w http.ResponseWriter, status int, msg string, code string
 	JSON(w, status, resp)
 }
 
+func ErrorWithWrapDetails(w http.ResponseWriter, status int, msg string, code string, details error) {
+	dtl := WrapErrDetails(details, WrapOpt{MaxLen: 50, HideInProd: true})
+	resp := BaseResponse[any]{
+		Success: false,
+		Message: msg,
+		Data:    nil,
+		Error: &ErrorInfo{
+			Code:    code,
+			Details: dtl,
+		},
+	}
+
+	JSON(w, status, resp)
+}
+
 func ValidationError(w http.ResponseWriter, filedErrors []FieldError) {
 	resp := BaseResponse[any]{
 		Success: false,

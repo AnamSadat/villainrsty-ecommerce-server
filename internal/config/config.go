@@ -27,6 +27,7 @@ type Config struct {
 
 	ResetPasswordTTL time.Duration
 	ResetPasswordURL string
+	TwoFactorOTPTTL  time.Duration
 }
 
 func MustLoad() Config {
@@ -43,6 +44,7 @@ func MustLoad() Config {
 	smtpFromName := mustEnv("SMTP_FROM_NAME")
 	resetPasswordTTL := mustDuration("RESET_PASSWORD_TTL", 30*time.Minute)
 	resetPasswordURL := mustEnv("FRONTEND_RESET_PASSWORD_URL")
+	twoFactorOTPTTL := mustDuration("TWO_FACTOR_OTP_TTL", 5*time.Minute)
 
 	return Config{
 		Addr:             addr,
@@ -60,6 +62,7 @@ func MustLoad() Config {
 		SMTPFromName:     smtpFromName,
 		ResetPasswordTTL: resetPasswordTTL,
 		ResetPasswordURL: resetPasswordURL,
+		TwoFactorOTPTTL:  twoFactorOTPTTL,
 	}
 }
 

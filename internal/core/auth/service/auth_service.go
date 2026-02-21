@@ -19,6 +19,7 @@ type AuthService struct {
 	refreshTokenRepo  ports.RefreshTokenRepository
 	passwordResetRepo ports.PasswordResetTokenRepository
 	twoFactorOTPRepo  ports.TwoFactorOTPRepository
+	userRoleRepo      ports.UserRoleRepository
 	emailSender       ports.EmailSender
 	hasher            ports.PasswordHasher
 	tokenHasher       ports.TokenHasher
@@ -34,6 +35,7 @@ func NewAuthService(
 	refreshTokenRepo ports.RefreshTokenRepository,
 	passwordResetRepo ports.PasswordResetTokenRepository,
 	twoFactorOTPRepo ports.TwoFactorOTPRepository,
+	userRoleRepo ports.UserRoleRepository,
 	emailSender ports.EmailSender,
 	hasher ports.PasswordHasher,
 	tokenHasher ports.TokenHasher,
@@ -49,6 +51,7 @@ func NewAuthService(
 		tokenHasher:       tokenHasher,
 		passwordResetRepo: passwordResetRepo,
 		twoFactorOTPRepo:  twoFactorOTPRepo,
+		userRoleRepo:      userRoleRepo,
 		emailSender:       emailSender,
 		refreshTokenRepo:  refreshTokenRepo,
 		jwtService:        jwtService,
@@ -76,6 +79,12 @@ func (s *AuthService) Login(ctx context.Context, email, password string, remembe
 	if !s.hasher.Verify(user.Password, password) {
 		return nil, "", "", errors.New(errors.ErrUnauthorized, "invalid email or password")
 	}
+
+	role, err := s.resolveUserRole(ctx, user)
+	if err != nil {
+		return nil, "", "", err
+	}
+	user.Role = role
 
 	accessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
@@ -197,6 +206,12 @@ func (s *AuthService) VerifyLogin2FA(ctx context.Context, challengeID, otpCode s
 		return nil, "", "", errors.New(errors.ErrUnauthorized, "user not found")
 	}
 
+	role, err := s.resolveUserRole(ctx, user)
+	if err != nil {
+		return nil, "", "", err
+	}
+	user.Role = role
+
 	accessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
 		return nil, "", "", errors.Wrap(errors.ErrInternal, "failed to generate access token", err)
@@ -255,6 +270,11 @@ func (s *AuthService) Register(ctx context.Context, email, password, name string
 		return nil, err
 	}
 
+	if err := s.userRoleRepo.AssignRole(ctx, user.ID, "customer"); err != nil {
+		return nil, err
+	}
+	user.Role = "customer"
+
 	return user, nil
 }
 
@@ -308,6 +328,12 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (st
 	if !dbToken.IsValid() {
 		return "", "", errors.New(errors.ErrUnauthorized, "refresh token is expired or revoked")
 	}
+
+	role, err := s.resolveUserRole(ctx, user)
+	if err != nil {
+		return "", "", err
+	}
+	user.Role = role
 
 	accessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
@@ -484,4 +510,20 @@ func buildResetLink(baseURL, token string) (string, error) {
 	u.RawQuery = q.Encode()
 
 	return u.String(), nil
+}
+
+func (s *AuthService) resolveUserRole(ctx context.Context, user *models.User) (string, error) {
+	role, err := s.userRoleRepo.GetPrimaryRoleByUser(ctx, user.ID)
+	if err != nil {
+		if errors.IsKind(err, errors.ErrNotFound) {
+			return "customer", nil
+		}
+		return "", errors.Wrap(errors.ErrInternal, "failed to get user role", err)
+	}
+
+	if role == "" {
+		return "customer", nil
+	}
+
+	return role, nil
 }

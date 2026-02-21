@@ -11,6 +11,7 @@ type User struct {
 	Email     string
 	Password  string
 	Name      string
+	Role      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -22,6 +23,7 @@ func NewUser(email, password, name string) *User {
 		Email:     email,
 		Password:  password,
 		Name:      name,
+		Role:      "customer",
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

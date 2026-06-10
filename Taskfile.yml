@@ -26,6 +26,27 @@ tasks:
     cmds:
       - go build ./cmd/api/main.go
 
+  test:all:
+    desc: Run all testing
+    cmds:
+      - go test ./tests/jwt_service_test.go
+
+  test:verbose:
+    desc: Run with verbose
+    cmds:
+      - go test -v .
+
+  test:coverage:
+    desc: Run with coverage
+    cmds:
+      - go test -cover ./tests/jwt_service_test.go
+
+  test:generatecover:
+    desc: Generate coverage report
+    cmds:
+      - go test -coverprofile=coverage.out ./
+      - go tool cover -html=coverage.out
+
   migrate:up:
     desc: Run all up migrations_PATH
     cmds:
@@ -58,6 +79,14 @@ tasks:
     desc: Create new migrations_PATH file (name=<name-file>)
     cmds:
       - migrate create -ext sql -dir {{.CREATE_PATH}} -seq {{.name}}
+    requires:
+      vars:
+        - name
+
+  migrate:create:random:
+    desc: Create new migrations_PATH file (name=<name-file>), of the random number id
+    cmds:
+      - migrate create -ext sql -dir {{.CREATE_PATH}} -tz Asia/Jakarta {{.name}}
     requires:
       vars:
         - name

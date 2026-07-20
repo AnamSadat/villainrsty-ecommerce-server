@@ -39,7 +39,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		return nil, appErr.Wrap(appErr.ErrInternal, "failed to get user", err)
 	}
 
-	user := mapper.SQLCUserByEmailToDomain(row)
+	user := mapper.SQLCUserToDomain(row)
 
 	return user, nil
 }
@@ -58,7 +58,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (*models.User, 
 		return nil, appErr.Wrap(appErr.ErrInternal, "failed to get user", err)
 	}
 
-	user := mapper.SQLCUserByIDToDomain(row)
+	user := mapper.SQLCUserToDomain(row)
 	return user, nil
 }
 

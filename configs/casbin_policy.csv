@@ -1,12 +1,25 @@
-# customer
+# Auth - Profile endpoint
+p, customer, /profile, GET
+p, staff, /profile, GET
+p, admin, /profile, GET
+
+# Brands
+p, customer, /brands/*, GET
+p, staff, /brands/*, (GET|POST|PUT|DELETE)
+p, admin, /brands/*, (GET|POST|PUT|DELETE)
+
+# Categories
+p, customer, /category/*, GET
+p, staff, /category/*, (GET|POST|PUT|DELETE)
+p, admin, /category/*, (GET|POST|PUT|DELETE)
+
+# Products
 p, customer, /products/*, GET
 p, customer, /orders/*, (GET|POST)
-
-# staff
 p, staff, /products/*, (GET|POST|PATCH)
 p, staff, /orders/*, GET
-
-# admin
 p, admin, /products/*, (GET|POST|PATCH|DELETE)
 p, admin, /orders/*, (GET|POST|PATCH|DELETE)
+
+# Admin Management
 p, admin, /admin/users/*, (GET|POST|DELETE)

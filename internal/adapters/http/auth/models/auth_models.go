@@ -1,7 +1,7 @@
 package models
 
 import (
-	pkgValidator "villainrsty-ecommerce-server/pkg/validator"
+	"villainrsty-ecommerce-server/pkg/validator"
 )
 
 type (
@@ -50,6 +50,11 @@ type (
 		ID    string `json:"id"`
 		Email string `json:"email"`
 		Name  string `json:"name"`
+		Role  string `json:"role"`
+	}
+
+	GetProfileResponse struct {
+		User UserDTO `json:"user"`
 	}
 
 	RegisterResponse struct {
@@ -73,7 +78,7 @@ type (
 )
 
 func (r *LoginRequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	if err := v.ValidateStruct(r); err != nil {
 		return err
 	}
@@ -82,7 +87,7 @@ func (r *LoginRequest) Validate() error {
 }
 
 func (r *Login2FARequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	if err := v.ValidateStruct(r); err != nil {
 		return err
 	}
@@ -91,12 +96,12 @@ func (r *Login2FARequest) Validate() error {
 }
 
 func (r *VerifyLogin2FARequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	return v.ValidateStruct(r)
 }
 
 func (r *RegisterRequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	if err := v.ValidateStruct(r); err != nil {
 		return err
 	}
@@ -105,22 +110,22 @@ func (r *RegisterRequest) Validate() error {
 }
 
 func (r *RefreshTokenRequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	return v.ValidateStruct(r)
 }
 
 func (r *LogoutRequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	return v.ValidateStruct(r)
 }
 
 func (r *ForgotPasswordRequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	return v.ValidateStruct(r)
 }
 
 func (r *ResetPasswordRequest) Validate() error {
-	v := pkgValidator.NewValidate()
+	v := validator.NewValidate()
 	if err := v.ValidateStruct(r); err != nil {
 		return err
 	}

@@ -14,6 +14,7 @@ const (
 	ErrForbidden    Kind = "forbidden"
 	ErrConflict     Kind = "conflict"
 	ErrInternal     Kind = "internal"
+	ErrBadRequest   Kind = "bad_request"
 )
 
 type AppError struct {

@@ -30,6 +30,7 @@ func CasbinRBAC(enforcer *casbin.Enforcer) func(http.Handler) http.Handler {
 
 			if !ok {
 				httpx.Error(w, http.StatusForbidden, "access denied", "FORBIDDEN")
+				return
 			}
 			next.ServeHTTP(w, r)
 		})

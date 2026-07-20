@@ -1,10 +1,10 @@
 -- name: GetUserByEmail :one
-SELECT id, email, password, name, created_at, updated_at
+SELECT id, email, name, password, created_at, updated_at
 FROM users
 WHERE email = $1;
 
 -- name: GetUserByID :one
-SELECT id, email, password, name, created_at, updated_at
+SELECT id, email, name, password, created_at, updated_at
 FROM users
 WHERE id = $1
 LIMIT 1;

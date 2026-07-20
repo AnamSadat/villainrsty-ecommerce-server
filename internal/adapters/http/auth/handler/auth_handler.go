@@ -8,8 +8,8 @@ import (
 	"villainrsty-ecommerce-server/internal/adapters/http/auth/models"
 	"villainrsty-ecommerce-server/internal/adapters/http/lib/httpx"
 	"villainrsty-ecommerce-server/internal/core/auth/ports"
-	"villainrsty-ecommerce-server/internal/core/shared/errors"
 
+	"villainrsty-ecommerce-server/internal/core/shared/errors"
 	sharedModel "villainrsty-ecommerce-server/internal/core/shared/models"
 )
 
@@ -30,14 +30,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	user, accessToken, refreshToken, err := h.authService.Login(r.Context(), req.Email, req.Password, req.RememberMe)
 	if err != nil {
 		h.logger.Warn("login failed", "email", req.Email, "error", err.Error())
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
@@ -57,13 +57,13 @@ func (h *AuthHandler) Login2FA(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	challengeID, err := h.authService.LoginWith2FA(r.Context(), req.Email, req.Password, req.RememberMe)
 	if err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
@@ -85,14 +85,14 @@ func (h *AuthHandler) VerifyLogin2FA(w http.ResponseWriter, r *http.Request) {
 
 	if err := req.Validate(); err != nil {
 		h.logger.Info("error validate", "error", err)
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	user, accessToken, refreshToken, err := h.authService.VerifyLogin2FA(r.Context(), req.ChallengeID, req.OTPCode, req.RememberMe)
 	if err != nil {
 		h.logger.Info("ke error verify", "error", err)
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
@@ -113,19 +113,37 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	user, err := h.authService.Register(r.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	resp := models.RegisterResponse{User: mapUserToDTO(user)}
 
 	httpx.Success(w, http.StatusOK, "User registered successfully", resp)
+}
+
+func (h *AuthHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value("user").(*sharedModel.User)
+	if !ok || user == nil {
+		httpx.HandleError(w, errors.New(errors.ErrUnauthorized, "user not found in context"), h.logger)
+		return
+	}
+
+	userDTO := models.UserDTO{
+		ID:    user.ID.String(),
+		Email: user.Email,
+		Name:  user.Name,
+		Role:  user.Role,
+	}
+
+	resp := models.GetProfileResponse{User: userDTO}
+	httpx.Success(w, http.StatusOK, "Get profile success", resp)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -136,12 +154,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	if err := h.authService.Logout(r.Context(), req.RefreshToken); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
@@ -159,14 +177,14 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 	if err := req.Validate(); err != nil {
 		h.logger.Info("req di handler", "validate di dalam", req.Validate())
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	accessToken, refreshToken, err := h.authService.RefreshToken(r.Context(), req.RefreshToken)
 	if err != nil {
 		fmt.Println("masuk ke sini")
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
@@ -186,12 +204,12 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	if err := h.authService.RequestPasswordReset(r.Context(), req.Email); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 	}
 
 	httpx.Success(w, http.StatusOK, "Request berhasil, link akan segera dikirim", "")
@@ -205,73 +223,16 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := req.Validate(); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	if err := h.authService.ConfirmPasswordReset(r.Context(), req.Token, req.NewPassword); err != nil {
-		h.handlerError(w, err)
+		httpx.HandleError(w, err, h.logger)
 		return
 	}
 
 	httpx.Success(w, http.StatusOK, "Password berhasil direset", "")
-}
-
-func (h *AuthHandler) handlerError(w http.ResponseWriter, err error) {
-	appErr, ok := errors.AsAppError(err)
-	if !ok {
-		h.logger.Error("internal server error", "error", err.Error())
-		httpx.ErrorWithDetails(
-			w,
-			http.StatusInternalServerError,
-			"Internal Server Error",
-			"INTERNAL_ERROR",
-			err.Error(),
-		)
-		return
-	}
-
-	switch appErr.Kind {
-	case errors.ErrNotFound, errors.ErrValidation, errors.ErrUnauthorized, errors.ErrForbidden, errors.ErrConflict:
-		h.logger.Warn("client error response",
-			"kind", appErr.Kind,
-			"message", appErr.Error(),
-		)
-	default:
-		h.logger.Error("server error response",
-			"kind", appErr.Kind,
-			"message", appErr.Error(),
-		)
-	}
-
-	switch appErr.Kind {
-	case errors.ErrNotFound:
-		httpx.Error(w, http.StatusNotFound, "Resource not found", "NOT_FOUND")
-	case errors.ErrValidation:
-		fieldErrors := make([]httpx.FieldError, 0)
-		for field, msg := range appErr.Fields {
-			fieldErrors = append(fieldErrors, httpx.FieldError{
-				Field:   field,
-				Message: msg,
-			})
-		}
-		httpx.ValidationError(w, fieldErrors)
-	case errors.ErrUnauthorized:
-		httpx.Error(w, http.StatusUnauthorized, "invalid credentials", "UNAUTHORIZED")
-	case errors.ErrForbidden:
-		httpx.Error(w, http.StatusForbidden, "access denied", "FORBIDDEN")
-	case errors.ErrConflict:
-		httpx.ErrorWithDetails(w, http.StatusConflict, "resource already exists", "CONFLICT", err.Error())
-	default:
-		httpx.ErrorWithDetails(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
-			"INTERNAL_ERROR",
-			appErr.Message,
-		)
-
-	}
 }
 
 func mapUserToDTO(user *sharedModel.User) models.UserDTO {

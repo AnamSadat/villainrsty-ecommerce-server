@@ -6,7 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func RegisterRoute(r chi.Router, handler *handler.AuthHandler) {
+func AuthRoute(r chi.Router, handler *handler.AuthHandler) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/login", handler.Login)
 		r.Post("/login-2fa", handler.Login2FA)

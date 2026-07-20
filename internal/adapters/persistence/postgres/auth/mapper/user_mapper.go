@@ -2,48 +2,35 @@ package mapper
 
 import (
 	"villainrsty-ecommerce-server/internal/adapters/persistence/postgres/sqlc"
-	// "villainrsty-ecommerce-server/internal/core/auth/models"
 	"villainrsty-ecommerce-server/internal/core/shared/models"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func SQLCUserByEmailToDomain(sqlcUser sqlc.GetUserByEmailRow) *models.User {
+func SQLCUserToDomain(u sqlc.User) *models.User {
 	return &models.User{
-		ID:        models.ID(sqlcUser.ID),
-		Email:     sqlcUser.Email,
-		Password:  sqlcUser.Password,
-		Name:      sqlcUser.Name,
+		ID:        models.ID(u.ID),
+		Email:     u.Email,
+		Password:  u.Password,
+		Name:      u.Name,
 		Role:      "customer",
-		CreatedAt: sqlcUser.CreatedAt.Time,
-		UpdatedAt: sqlcUser.UpdatedAt.Time,
+		CreatedAt: u.CreatedAt.Time,
+		UpdatedAt: u.UpdatedAt.Time,
 	}
 }
 
-func SQLCUserByIDToDomain(sqlcUser sqlc.GetUserByIDRow) *models.User {
-	return &models.User{
-		ID:        models.ID(sqlcUser.ID),
-		Email:     sqlcUser.Email,
-		Password:  sqlcUser.Password,
-		Name:      sqlcUser.Name,
-		Role:      "customer",
-		CreatedAt: sqlcUser.CreatedAt.Time,
-		UpdatedAt: sqlcUser.UpdatedAt.Time,
-	}
-}
-
-func DomainUserToSQLCParams(user *models.User) sqlc.CreateUserParams {
+func DomainUserToSQLCParams(u *models.User) sqlc.CreateUserParams {
 	return sqlc.CreateUserParams{
-		ID:       user.ID.String(),
-		Email:    user.Email,
-		Password: user.Password,
-		Name:     user.Name,
+		ID:       u.ID.String(),
+		Email:    u.Email,
+		Password: u.Password,
+		Name:     u.Name,
 		CreatedAt: pgtype.Timestamp{
-			Time:  user.CreatedAt,
+			Time:  u.CreatedAt,
 			Valid: true,
 		},
 		UpdatedAt: pgtype.Timestamp{
-			Time:  user.UpdatedAt,
+			Time:  u.UpdatedAt,
 			Valid: true,
 		},
 	}

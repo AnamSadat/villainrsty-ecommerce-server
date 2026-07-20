@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS brands (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(64) NOT NULL,
+    slug VARCHAR(64) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);

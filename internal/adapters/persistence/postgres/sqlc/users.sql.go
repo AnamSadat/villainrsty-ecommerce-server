@@ -48,28 +48,19 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password, name, created_at, updated_at
+SELECT id, email, name, password, created_at, updated_at
 FROM users
 WHERE email = $1
 `
 
-type GetUserByEmailRow struct {
-	ID        string           `json:"id"`
-	Email     string           `json:"email"`
-	Password  string           `json:"password"`
-	Name      string           `json:"name"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
-}
-
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	var i GetUserByEmailRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.Password,
 		&i.Name,
+		&i.Password,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -77,29 +68,20 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password, name, created_at, updated_at
+SELECT id, email, name, password, created_at, updated_at
 FROM users
 WHERE id = $1
 LIMIT 1
 `
 
-type GetUserByIDRow struct {
-	ID        string           `json:"id"`
-	Email     string           `json:"email"`
-	Password  string           `json:"password"`
-	Name      string           `json:"name"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-	UpdatedAt pgtype.Timestamp `json:"updated_at"`
-}
-
-func (q *Queries) GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i GetUserByIDRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Email,
-		&i.Password,
 		&i.Name,
+		&i.Password,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

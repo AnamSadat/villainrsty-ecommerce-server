@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"villainrsty-ecommerce-server/internal/adapters/http/router"
 	"villainrsty-ecommerce-server/internal/app"
 	"villainrsty-ecommerce-server/internal/config"
+	"villainrsty-ecommerce-server/pkg/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -30,18 +32,18 @@ func main() {
 	// =======================================================
 	//                     using pretty_slog
 	// =======================================================
-	// var logHandler slog.Handler
+	var logHandler slog.Handler
 
-	// if os.Getenv("APP_ENV") == "production" {
-	// 	logHandler = slog.NewJSONHandler(os.Stdout, nil)
-	// } else {
-	// 	logHandler = logger.NewPrettyHandler(os.Stdout, nil)
-	// }
+	if os.Getenv("APP_ENV") == "production" {
+		logHandler = slog.NewJSONHandler(os.Stdout, nil)
+	} else {
+		logHandler = logger.NewPrettyHandler(os.Stdout, nil)
+	}
 
-	// logger := slog.New(logHandler)
+	logger := slog.New(logHandler)
 	// =======================================================
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	// logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	container := app.New(cfg, db, logger)
 
@@ -51,11 +53,14 @@ func main() {
 		Addr:              cfg.Addr,
 		Handler:           r,
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
-		log.Printf("🚀 Server running on http://localhost%s", cfg.Addr)
-		if err := srv.ListenAndServe(); err != nil {
+		log.Printf("🚀 Server running on http://%s%s", cfg.Host, cfg.Addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server error: %v", err)
 		}
 	}()

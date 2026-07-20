@@ -87,32 +87,98 @@ func colorizeJSON(jsonStr string) string {
 	var result []string
 
 	for _, line := range lines {
-		// Warnai Key (sebelum titik dua :)
+		// Skip empty lines dan bracket lines
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "{" || trimmed == "}" || trimmed == "" {
+			result = append(result, line)
+			continue
+		}
+
+		// Warnai Key dan Value
 		if strings.Contains(line, ":") {
-			parts := strings.SplitN(line, ":", 2)
-			key := parts[0]
-			val := parts[1]
-
-			// Key warna Cyan/Biru Muda
-			key = strings.Replace(key, "\"", colorCyan+"\"", 1)
-			key = strings.Replace(key, "\"", "\""+colorReset, 1) // Tutup quote
-
-			// Warnai Value berdasarkan tipe (sederhana)
-			if strings.Contains(val, "\"") {
-				// String -> Kuning
-				val = strings.Replace(val, "\"", colorYellow+"\"", 1)
-				val = strings.Replace(val, "\"", "\""+colorReset, -1) // Tutup quote terakhir
-			} else if strings.Contains(val, "true") || strings.Contains(val, "false") {
-				// Boolean -> Merah
-				val = colorRed + val + colorReset
-			} else {
-				// Angka/Null -> Hijau
-				val = colorGreen + val + colorReset
+			// Cari posisi key (antara { dan :)
+			colonIdx := strings.Index(line, ":")
+			if colonIdx == -1 {
+				result = append(result, line)
+				continue
 			}
 
-			line = key + ":" + val
+			keyPart := line[:colonIdx]   // Bagian sebelum :
+			valPart := line[colonIdx+1:] // Bagian setelah :
+
+			// Warnai key (cyan)
+			keyPart = colorizeKey(keyPart)
+
+			// Warnai value berdasarkan tipe
+			valPart = colorizeValue(valPart)
+
+			line = keyPart + ":" + valPart
 		}
 		result = append(result, line)
 	}
 	return strings.Join(result, "\n")
+}
+
+// colorizeKey mewarnai key JSON menjadi cyan
+func colorizeKey(keyPart string) string {
+	// Find opening quote
+	openIdx := strings.Index(keyPart, "\"")
+	if openIdx == -1 {
+		return keyPart
+	}
+
+	// Find closing quote
+	closeIdx := strings.LastIndex(keyPart, "\"")
+	if closeIdx == -1 || closeIdx <= openIdx {
+		return keyPart
+	}
+
+	before := keyPart[:openIdx]
+	key := keyPart[openIdx : closeIdx+1]
+	after := keyPart[closeIdx+1:]
+
+	return before + colorCyan + key + colorReset + after
+}
+
+// colorizeValue mewarnai value JSON sesuai tipenya
+func colorizeValue(valPart string) string {
+	valPart = strings.TrimSpace(valPart)
+
+	// Remove trailing comma if exists
+	hasComma := false
+	if strings.HasSuffix(valPart, ",") {
+		hasComma = true
+		valPart = valPart[:len(valPart)-1]
+	}
+
+	var colored string
+
+	// Check tipe value
+	if valPart == "null" {
+		colored = colorGreen + valPart + colorReset
+	} else if valPart == "true" || valPart == "false" {
+		colored = colorRed + valPart + colorReset
+	} else if strings.HasPrefix(valPart, "\"") && strings.HasSuffix(valPart, "\"") {
+		// String -> Kuning
+		colored = colorYellow + valPart + colorReset
+	} else if _, err := parseNumber(valPart); err == nil {
+		// Number -> Hijau
+		colored = colorGreen + valPart + colorReset
+	} else {
+		// Unknown -> biarkan aja
+		colored = valPart
+	}
+
+	if hasComma {
+		colored += ","
+	}
+
+	return colored
+}
+
+// parseNumber helper untuk check apakah string adalah number
+func parseNumber(s string) (float64, error) {
+	var num float64
+	_, err := fmt.Sscanf(s, "%f", &num)
+	return num, err
 }

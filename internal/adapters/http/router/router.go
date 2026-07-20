@@ -7,6 +7,8 @@ import (
 	"time"
 
 	authRoutes "villainrsty-ecommerce-server/internal/adapters/http/auth/routes"
+	brandRoutes "villainrsty-ecommerce-server/internal/adapters/http/brands/routes"
+	categoryRoutes "villainrsty-ecommerce-server/internal/adapters/http/categories/routes"
 	"villainrsty-ecommerce-server/internal/adapters/http/lib/httpx"
 	httpmiddleware "villainrsty-ecommerce-server/internal/adapters/http/middleware"
 	rbacRoutes "villainrsty-ecommerce-server/internal/adapters/http/rbac/routes"
@@ -32,6 +34,7 @@ func New(container *app.Container) *chi.Mux {
 		AllowCredentials: true,
 	}))
 
+	// Index/Home
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
 		httpx.JSON(w, http.StatusOK, map[string]any{
 			"success": true,
@@ -39,7 +42,7 @@ func New(container *app.Container) *chi.Mux {
 		})
 	})
 
-	r.Get("/health", healtHandler)
+	// Route not found
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		httpx.ErrorWithDetails(
 			w,
@@ -52,10 +55,6 @@ func New(container *app.Container) *chi.Mux {
 			})
 	})
 
-	r.Get("/openapi.yml", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./openapi.yml")
-	})
-
 	// Pasang Swagger UI v5 (Support v3.0 & v3.1)
 	// New(Judul, Path_ke_YAML, Path_di_Browser)
 	r.Mount("/docs", v5emb.New(
@@ -64,13 +63,25 @@ func New(container *app.Container) *chi.Mux {
 		"/docs",
 	))
 
-	authRoutes.RegisterRoute(r, container.AuthHandler)
-
+	// With authentication
 	r.Group(func(r chi.Router) {
-		r.Use(httpmiddleware.AuthJWT(container.JWTService))
+		r.Use(httpmiddleware.AuthJWT(container.JWTService, container.Logger))
 		r.Use(httpmiddleware.CasbinRBAC(container.CasbinEnforcer))
+		r.Get("/profile", container.AuthHandler.GetProfile)
+		brandRoutes.BrandsRoute(r, container.BrandHandler)
+		categoryRoutes.CategoriesRoute(r, container.CategoryHandler)
 		rbacRoutes.RegisterRbacRoute(r, container.RbacHandler)
 	})
+
+	// Public route
+	authRoutes.AuthRoute(r, container.AuthHandler)
+
+	r.Get("/health", healtHandler)
+	r.Get("/openapi.yml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./openapi.yml")
+	})
+	r.Get("/brands", container.BrandHandler.GetAllBrand)
+	r.Get("/category", container.CategoryHandler.GetAllCategories)
 
 	return r
 }

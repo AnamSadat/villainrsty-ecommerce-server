@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Addr         string
+	Host         string
 	DatabaseUrl  string
 	CookieSecret string
 
@@ -32,7 +33,8 @@ type Config struct {
 }
 
 func MustLoad() Config {
-	addr := getEnv("APP_ADDR", ":8080")
+	addr := getEnv("APP_ADDR", "8080")
+	host := getEnv("APP_HOST", "localhost")
 	dbURL := mustEnv("DATABASE_URL")
 	secret := mustEnv("COOKIE_SECRET")
 	accessTTL := mustDuration("ACCESS_TTL", 15*time.Minute)
@@ -51,6 +53,7 @@ func MustLoad() Config {
 
 	return Config{
 		Addr:             addr,
+		Host:             host,
 		DatabaseUrl:      dbURL,
 		CookieSecret:     secret,
 		AccessTTL:        accessTTL,

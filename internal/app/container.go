@@ -5,13 +5,19 @@ import (
 
 	"villainrsty-ecommerce-server/internal/adapters/notifications/smtp"
 	"villainrsty-ecommerce-server/internal/adapters/persistence/postgres"
-	"villainrsty-ecommerce-server/internal/adapters/persistence/postgres/auth/repository"
+	authRepo "villainrsty-ecommerce-server/internal/adapters/persistence/postgres/auth/repository"
+	brandRepo "villainrsty-ecommerce-server/internal/adapters/persistence/postgres/brands/repository"
+	categoryRepo "villainrsty-ecommerce-server/internal/adapters/persistence/postgres/categories/repository"
 	"villainrsty-ecommerce-server/internal/adapters/security/password"
 	"villainrsty-ecommerce-server/internal/config"
 	"villainrsty-ecommerce-server/internal/core/auth/ports"
-	"villainrsty-ecommerce-server/internal/core/auth/service"
+	authService "villainrsty-ecommerce-server/internal/core/auth/services"
+	brandService "villainrsty-ecommerce-server/internal/core/brands/services"
+	categoryService "villainrsty-ecommerce-server/internal/core/categories/services"
 
 	authHandler "villainrsty-ecommerce-server/internal/adapters/http/auth/handler"
+	brandHandler "villainrsty-ecommerce-server/internal/adapters/http/brands/handler"
+	categoryHandler "villainrsty-ecommerce-server/internal/adapters/http/categories/handler"
 	rbacHandler "villainrsty-ecommerce-server/internal/adapters/http/rbac/handler"
 	authorization "villainrsty-ecommerce-server/internal/adapters/security/authorization"
 	tokenHasher "villainrsty-ecommerce-server/internal/adapters/security/hasher"
@@ -22,20 +28,25 @@ import (
 )
 
 type Container struct {
-	AuthHandler    *authHandler.AuthHandler
-	RbacHandler    *rbacHandler.RbacHandler
-	AuthService    ports.AuthService
-	JWTService     ports.JWTService
-	CasbinEnforcer *casbin.Enforcer
+	AuthHandler     *authHandler.AuthHandler
+	RbacHandler     *rbacHandler.RbacHandler
+	BrandHandler    *brandHandler.BrandHandler
+	CategoryHandler *categoryHandler.CategoryHandler
+	AuthService     ports.AuthService
+	JWTService      ports.JWTService
+	CasbinEnforcer  *casbin.Enforcer
+	Logger          *slog.Logger
 }
 
 func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 	queries := postgres.NewQueries(db)
-	userRepo := repository.NewUserRepository(queries)
-	refreshTokenRepo := repository.NewRefreshTokenRepository(queries)
-	passwordResetRepo := repository.NewPasswordResetTokenRepository(queries)
-	twoFactorOTPRepo := repository.NewTwoFactorOTPRepository(queries)
-	userRoleRepo := repository.NewUserRoleRepository(queries)
+	userRepo := authRepo.NewUserRepository(queries)
+	brandRepo := brandRepo.NewBrandRepository(queries)
+	categoryRepo := categoryRepo.NewCategoryRepository(queries)
+	refreshTokenRepo := authRepo.NewRefreshTokenRepository(queries)
+	passwordResetRepo := authRepo.NewPasswordResetTokenRepository(queries)
+	twoFactorOTPRepo := authRepo.NewTwoFactorOTPRepository(queries)
+	userRoleRepo := authRepo.NewUserRoleRepository(queries)
 	hasher := password.NewBcryptHasher()
 	tokenHasher := tokenHasher.NewSHA256TokenHasher()
 	jwtService := jwtService.NewJWTService(cfg.CookieSecret)
@@ -53,7 +64,7 @@ func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 		cfg.SMTPFromName,
 	)
 
-	authService := service.NewAuthService(
+	authService := authService.NewAuthService(
 		userRepo,
 		refreshTokenRepo,
 		passwordResetRepo,
@@ -69,14 +80,22 @@ func New(cfg config.Config, db *pgxpool.Pool, logger *slog.Logger) *Container {
 		cfg.TwoFactorOTPTTL,
 	)
 
+	brandService := brandService.NewBrandService(brandRepo)
+	categoryService := categoryService.NewCategoriesService(categoryRepo)
+
 	authHTTPHandler := authHandler.NewAuthHandler(authService, logger)
 	rbacHTTPHandler := rbacHandler.NewRbacHandler()
+	brandHTTPHandler := brandHandler.NewBrandHandler(brandService, logger)
+	categoryHTTPHandler := categoryHandler.NewCategoryHandler(categoryService, logger)
 
 	return &Container{
-		AuthHandler:    authHTTPHandler,
-		RbacHandler:    rbacHTTPHandler,
-		AuthService:    authService,
-		JWTService:     jwtService,
-		CasbinEnforcer: enforcer,
+		AuthHandler:     authHTTPHandler,
+		RbacHandler:     rbacHTTPHandler,
+		BrandHandler:    brandHTTPHandler,
+		CategoryHandler: categoryHTTPHandler,
+		AuthService:     authService,
+		JWTService:      jwtService,
+		CasbinEnforcer:  enforcer,
+		Logger:          logger,
 	}
 }
